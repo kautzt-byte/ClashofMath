@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- SECTION 1: HEAD & STYLES ONLY  -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Math Royale: Teacher Showdown</title>
+
+  <!--
+    Implements agreed visual changes:
+    - High contrast, readable card text & labels
+    - Distinct arena backgrounds (10 gradients)
+    - HUD readability, larger fonts, subtle text shadows
+    - Locked-arena styling
+    - Buttons, badges, panels, modals
+  -->
+  <style>
+    :root{
+      /* Core palette */
+      --bg:#0b1220;         /* page background */
+      --fg:#e6eefc;         /* primary text */
+      --muted:#b7c6e4;      /* secondary text */
+      --panel:#0e1629;      /* card/panel bg */
+      --panelBorder:#21345c;
+      --accent:#6ee7b7;     /* accent gradient A */
+      --accent2:#22d3ee;    /* accent gradient B */
+      --danger:#fb7185;     /* error */
+      --ok:#9FE970;         /* hp/meter ok */
+      --gold:#fbbf24;       /* misc */
+      --violet:#8b5cf6;     /* misc */
+
+      /* Layout */
+      --w:960px;            /* canvas width */
+      --h:540px;            /* canvas height */
+      --r:16px;             /* radius */
+
+      /* Typography */
+      --font: Inter, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Base */
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:var(--font)}
+    .wrap{max-width:var(--w);margin:16px auto;padding:8px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+    /* Buttons */
+    .btn{background:#1b2540;color:#f0f5ff;padding:10px 14px;border-radius:12px;border:1px solid #2b3d66;cursor:pointer;font-weight:700;letter-spacing:.2px;text-shadow:0 1px 0 rgba(0,0,0,.6)}
+    .btn:hover{background:#23325a}
+    .btn.primary{background:#1f3a2e;border-color:#2b5341}
+    .btn.primary:hover{background:#285743}
+    .btn.warn{background:#3c1d2a;border-color:#6b233b}
+
+    /* Chips */
+    .badge{padding:2px 8px;border-radius:999px;border:1px solid #2b3d66;background:#0d152a;font-size:12px;color:var(--muted)}
+
+    /* Panels & Canvas */
+    .panel{background:var(--panel);border:1px solid var(--panelBorder);border-radius:var(--r);padding:12px}
+    canvas{display:block;width:100%;height:auto;border-radius:var(--r);border:1px solid var(--panelBorder);background:#0e1629}
+
+    /* HUD & Meters */
+    .hud{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px}
+    .meter{height:12px;background:#132345;border-radius:999px;overflow:hidden;border:1px solid #24406f}
+    .meter>div{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .2s}
+
+    /* Top bar */
+    .arena-bar{display:flex;gap:8px;align-items:center;justify-content:space-between}
+    .select{background:#0e1527;border:1px solid #213357;color:#f0f5ff;padding:10px;border-radius:12px;font-weight:700}
+
+    /* Modals */
+    .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:50}
+    .modal.show{display:flex}
+    .card{background:#0f172a;border:1px solid #203052;border-radius:16px;max-width:780px;width:min(780px,92vw);padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.55)}
+    .grid{display:grid;gap:8px}
+    .grid.cols2{grid-template-columns:1fr 1fr}
+
+    /* Inputs */
+    input[type="text"], input[type="number"]{background:#0a1224;border:1px solid #203052;color:#f0f5ff;padding:12px;border-radius:12px;width:100%;font-size:16px}
+
+    /* Deckbuilder */
+    .deck{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+    .pool{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+    .cardbtn{display:flex;flex-direction:column;gap:4px;align-items:center;justify-content:center;padding:10px;border-radius:12px;border:1px solid #0a0f1f;cursor:pointer;min-height:86px;position:relative}
+    .cardbtn[disabled]{opacity:.45;cursor:not-allowed}
+    .cardbtn .label{font-weight:900;letter-spacing:.2px;color:#f8fbff;text-shadow:0 1px 0 rgba(0,0,0,.9),0 0 6px rgba(0,0,0,.65)}
+    .cardbtn .meta{font-size:12px;color:#eaf2ff;text-shadow:0 1px 0 rgba(0,0,0,.8)}
+
+    /* Hand & Placement */
+    .hand{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+    .laneBtns{display:flex;gap:6px}
+    .posBtns{display:flex;gap:6px;margin-top:6px}
+    .posBtns .btn{padding:6px 10px;font-size:12px}
+
+    /* Arena backgrounds (10 distinct) */
+    .arena-1{background:linear-gradient(120deg,#0d3b47,#1e293b);} /* Mr. Kautz */
+    .arena-2{background:linear-gradient(120deg,#5b4636,#1e293b);} /* Mrs. Larsen */
+    .arena-3{background:linear-gradient(120deg,#0b3a6e,#18324b);} /* Mrs. Turner */
+    .arena-4{background:linear-gradient(120deg,#6a1a1a,#3b1d0f);} /* Lunch Ladies */
+    .arena-5{background:linear-gradient(120deg,#6b285e,#2a1a36);} /* Mr. Robert's */
+    .arena-6{background:linear-gradient(120deg,#1b1b63,#0f1033);} /* Mr. Nelson */
+    .arena-7{background:linear-gradient(120deg,#611414,#1c0f13);} /* Mrs. Gibson */
+    .arena-8{background:linear-gradient(120deg,#6b5222,#2b1e0f);} /* Mr. Grant */
+    .arena-9{background:linear-gradient(120deg,#0f2744,#09182b);} /* Mr. Parsons */
+    .arena-10{background:linear-gradient(120deg,#070707,#3d2c00);} /* Mrs. Clark */
+    .arenaBG{position:absolute;inset:0;border-radius:16px;opacity:.65}
+    .laneDivider{position:absolute;left:10px;right:10px;top:50%;height:2px;background:#2b3d66;border-radius:2px;transform:translateY(-50%);opacity:.7}
+
+    /* Utilities */
+    .tiny{font-size:12px;color:var(--muted)}
+    .lock{opacity:.4}
+  </style>
+</head>
+<body>
+  <!-- SECTION 2: MAIN LAYOUT (Body + HUD skeleton)  -->
+  <div class="wrap">
+    <div class="panel" role="region" aria-label="Top Controls">
+      <div class="arena-bar row">
+        <div class="row" aria-label="Game Title and Status">
+          <strong>Math Royale: Teacher Showdown</strong>
+          <span class="badge" id="modeBadge">Regular: Circles (+Proportions)</span>
+          <span class="badge" id="arenaBadge">Arena 1 – Mr. Kautz</span>
+        </div>
+        <div class="row" aria-label="Selectors and Actions">
+          <label class="tiny" for="modeSel">Mode</label>
+          <select id="modeSel" class="select" aria-label="Math Mode">
+            <option value="regular">Regular: Circles (+Proportions)</option>
+            <option value="advanced">Advanced: Equations (+Proportions)</option>
+          </select>
+
+          <label class="tiny" for="arenaSel">Arena</label>
+          <!-- Options injected by script; locked arenas appear disabled/dimmed -->
+          <select id="arenaSel" class="select" aria-label="Arena Select"></select>
+
+          <button class="btn" id="deckBtn" aria-label="Edit Deck">Edit Deck</button>
+          <button class="btn" id="startBtn" aria-label="Start Match">Start Match</button>
+          <button class="btn" id="muteBtn" aria-label="Toggle Sound">🔊</button>
+          <button class="btn" id="resetBtn" aria-label="Reset Progress">Reset Progress</button>
+        </div>
+      </div>
+
+      <!-- Arena & Board -->
+      <div class="panel" style="margin-top:8px;position:relative" role="region" aria-label="Arena and Board">
+        <!-- Distinct arena gradient background set by class; JS swaps classes per arena -->
+        <div id="arenaBG" class="arenaBG arena-1" aria-hidden="true"></div>
+        <div class="laneDivider" aria-hidden="true"></div>
+        <canvas id="game" width="960" height="540" aria-label="Battlefield Canvas"></canvas>
+      </div>
+
+      <!-- HUD Row: Time/HP • Mana • Lane/Placement + Hand -->
+      <div class="hud" role="region" aria-label="Heads-up Display">
+        <!-- Time & Towers -->
+        <div class="panel" role="group" aria-label="Timer and Towers">
+          <div class="row" style="justify-content:space-between">
+            <div>⏱ Time: <span id="timeLbl">150</span>s</div>
+            <div>🏰 Your Towers: <span id="hpYou">1000/1000 • 1000/1000</span></div>
+          </div>
+        </div>
+
+        <!-- Mana -->
+        <div class="panel" role="group" aria-label="Mana">
+          <div>🔮 Mana: <span id="manaLbl">0</span> / 10</div>
+          <div class="meter" aria-hidden="true"><div id="manaBar" style="width:0%"></div></div>
+          <div class="tiny">Solve questions to gain mana quickly. Passive regen is slow.</div>
+        </div>
+
+        <!-- Lane / Position / Hand Controls -->
+        <div class="panel" role="group" aria-label="Controls and Hand">
+          <div class="row" style="justify-content:space-between">
+            <div>🎴 Lane: <span id="laneLbl">Top</span></div>
+            <div class="laneBtns">
+              <button class="btn" id="laneTop" aria-label="Set Lane Top">Top</button>
+              <button class="btn" id="laneBot" aria-label="Set Lane Bottom">Bottom</button>
+            </div>
+          </div>
+
+          <!-- Placement positions for intuitive spawning (Back/Mid/Front) -->
+          <div class="posBtns" role="group" aria-label="Spawn Position">
+            <span class="tiny">Spawn Position:</span>
+            <button class="btn" data-pos="back" aria-label="Back">Back</button>
+            <button class="btn" data-pos="mid" aria-label="Mid">Mid</button>
+            <button class="btn" data-pos="front" aria-label="Front">Front</button>
+            <span class="tiny">(Pick lane + position, then play a card.)</span>
+          </div>
+
+          <!-- Player Hand (4 visible cards) -->
+          <div class="hand" id="hand" aria-label="Your Hand"></div>
+
+          <div class="row" style="margin-top:6px;justify-content:space-between">
+            <button class="btn primary" id="solveManaBtn" aria-label="Solve for Mana">Solve for Mana</button>
+            <div class="tiny">Keyboard: 1–8 play, T/B lane, F/M/B position, Enter submit</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- SECTION 3: DECKBUILDER, QUESTION, END MODALS (markup only) -->
+
+<!-- Deckbuilder Modal -->
+<div class="modal" id="deckModal" role="dialog" aria-modal="true" aria-labelledby="deckTitle">
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <strong id="deckTitle">Build Your Deck (8 cards)</strong>
+      <div class="row">
+        <span class="badge" id="avgCost">Avg Cost: 0.0</span>
+        <button class="btn" id="usePrev" aria-label="Use Last Deck">Use Last Deck</button>
+        <button class="btn" id="randDeck" aria-label="Randomize Deck">Randomize</button>
+        <button class="btn primary" id="saveDeck" aria-label="Save Deck">Save Deck</button>
+      </div>
+    </div>
+    <div class="tiny">All cards are available from the start. Tip: include at least 1 melee, 1 ranged, and 1 spell or support. Locked arenas do not affect card availability.</div>
+    <div class="grid cols2" style="margin-top:8px">
+      <div>
+        <div class="tiny">Card Pool</div>
+        <div class="pool" id="pool" aria-label="Card Pool"></div>
+      </div>
+      <div>
+        <div class="tiny">Your Deck (8)</div>
+        <div class="deck" id="deck" aria-label="Your Deck"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Question Modal -->
+<div class="modal" id="qModal" role="dialog" aria-modal="true" aria-labelledby="qTitle">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:flex-start">
+      <div>
+        <strong id="qTitle">Question</strong>
+        <div class="tiny" id="qHint">Unit 3 prompt will appear here.</div>
+      </div>
+      <button class="btn" id="qClose" aria-label="Close Question">Close</button>
+    </div>
+
+    <!-- Problem text -->
+    <div style="margin-top:8px" id="qText" aria-live="polite"></div>
+
+    <!-- Answer input -->
+    <div class="row" style="margin-top:8px">
+      <input type="text" id="qInput" placeholder="Enter answer" aria-label="Answer" />
+      <button class="btn primary" id="qSubmit" aria-label="Submit Answer">Submit</button>
+    </div>
+
+    <!-- Feedback & MC rescue -->
+    <div id="qFeedback" class="tiny" style="margin-top:8px"></div>
+    <div id="qMC" class="row" style="margin-top:8px;display:none;flex-wrap:wrap;gap:6px" aria-label="Multiple Choice Options"></div>
+
+    <!-- Helper: Solve for Mana note -->
+    <div class="tiny" style="margin-top:8px">Correct answers grant mana. Passive mana refills slowly; answering questions is faster.</div>
+  </div>
+</div>
+
+<!-- Win/Lose Modal -->
+<div class="modal" id="endModal" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+  <div class="card" style="text-align:center">
+    <h2 id="endTitle">Result</h2>
+    <div style="margin:8px 0" id="endStats"></div>
+    <div class="row" style="justify-content:center">
+      <button class="btn primary" id="againBtn" aria-label="Play Again">Play Again</button>
+      <button class="btn" id="editDeckBtn" aria-label="Edit Deck">Edit Deck</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 4: CORE GAME LOGIC (Data, State, Audio, Math/Proportions, UI wiring) -->
+<script>
+// ===================== Data & Config =====================
+const ARENAS = [
+  {id:1,name:'Training Hall',teacher:'Mr. Kautz',bgClass:'arena-1',music:'calm',ai:{regen:0.25,delay:[1.6,1.9]}},
+  {id:2,name:'Library of Logic',teacher:'Mrs. Larsen',bgClass:'arena-2',music:'bossa',ai:{regen:0.28,delay:[1.5,1.8]}},
+  {id:3,name:'Science Lab Showdown',teacher:'Mrs. Turner',bgClass:'arena-3',music:'lab',ai:{regen:0.32,delay:[1.4,1.7]}},
+  {id:4,name:'Cafeteria Clash',teacher:'Lunch Ladies',bgClass:'arena-4',music:'caf',ai:{regen:0.36,delay:[1.3,1.6]}},
+  {id:5,name:'Art Studio Arena',teacher:"Mr. Robert's",bgClass:'arena-5',music:'art',ai:{regen:0.40,delay:[1.2,1.5]}},
+  {id:6,name:'Music Room Melee',teacher:'Mr. Nelson',bgClass:'arena-6',music:'music',ai:{regen:0.45,delay:[1.1,1.4]}},
+  {id:7,name:'Gymnasium Gauntlet',teacher:'Mrs. Gibson',bgClass:'arena-7',music:'gym',ai:{regen:0.52,delay:[1.0,1.3]}},
+  {id:8,name:'History Hall Siege',teacher:'Mr. Grant',bgClass:'arena-8',music:'hist',ai:{regen:0.60,delay:[0.9,1.2]}},
+  {id:9,name:'Vice Principals Office',teacher:'Mr. Parsons',bgClass:'arena-9',music:'vp',ai:{regen:0.75,delay:[0.8,1.1]}},
+  {id:10,name:"Principal's Citadel",teacher:'Mrs. Clark',bgClass:'arena-10',music:'final',ai:{regen:0.95,delay:[0.7,1.0]}},
+];
+
+const MAX_MANA = 10;
+// Passive regen intentionally slow; questions provide bursts
+const PASSIVE_REGEN = 0.12;
+
+// Card pool — all cards available from start
+const POOL = [
+  // 🛡️ Melee
+  {id:'knight',   label:'Knight Ben',      type:'melee',  cost:3, color:'#f59e0b', hp:240, dmg:26, range:20,  atk:0.8,  spd:65},
+  {id:'viking',   label:'Viking Korbyn',   type:'melee',  cost:6, color:'#b45309', hp:360, dmg:30, range:20,  atk:1.0,  spd:50},
+  {id:'samurai',  label:'Samurai Naomi',   type:'melee',  cost:4, color:'#ef4444', hp:200, dmg:28, range:20,  atk:0.7,  spd:75},
+
+  // 🏹 Ranged
+  {id:'archer',   label:'Archer Collyn',   type:'ranged', cost:4, color:'#6366f1', hp:150, dmg:18, range:120, atk:0.6,  spd:70},
+  {id:'musketeer',label:'Musketeer Dax',   type:'ranged', cost:5, color:'#3b82f6', hp:170, dmg:22, range:130, atk:0.7,  spd:65},
+  {id:'drone',    label:'Laser Drone Tommy',type:'ranged',cost:5, color:'#14b8a6', hp:180, dmg:20, range:140, atk:0.55, spd:70},
+
+  // 🧱 Siege (unchanged names)
+  {id:'catapult', label:'Catapult',        type:'siege',  cost:5, color:'#a855f7', hp:210, dmg:34, range:180, atk:1.1,  spd:45, splash:55},
+  {id:'trebuchet',label:'Trebuchet',       type:'siege',  cost:6, color:'#9333ea', hp:240, dmg:38, range:200, atk:1.2,  spd:40, splash:65},
+
+  // 🎗️ Support
+  {id:'banner',   label:'Banner Carrier Grace', type:'support', cost:3, color:'#22c55e', hp:140, dmg:0,  range:0,   atk:1.0, spd:60, buff:0.18},
+  {id:'torch',    label:'Torch Mage Shaylie',   type:'support', cost:4, color:'#f97316', hp:140, dmg:6,  range:60,  atk:0.5, spd:55, auradmg:6},
+
+  // ✨ Mage (converted from spells → now units)
+  // Fire Mage = light continuous AOE via aura damage (works with existing engine like Torch)
+  {id:'fireball', label:'Fire Mage Lucy',      type:'support', cost:4, color:'#ef4444', hp:150, dmg:8,  range:80,  atk:0.6, spd:60, auradmg:4},
+
+  // Healing Mage = aura healer (requires tiny engine patch to apply healing over time)
+  {id:'heal',     label:'Healing Mage Delanie',type:'support', cost:3, color:'#10b981', hp:150, dmg:0,  range:80,  atk:1.0, spd:55, auraheal:10}
+];
+;
+
+// ===================== Helpers & Storage =====================
+const $  = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+const rand = (a,b)=>Math.random()*(b-a)+a;
+const randi=(a,b)=>Math.floor(rand(a,b+1));
+
+const store = {
+  k: 'mr_ts_split_v1',
+  load(){ try{ return JSON.parse(localStorage.getItem(this.k))||{} }catch{return {}} },
+  save(obj){ localStorage.setItem(this.k, JSON.stringify(obj)); }
+};
+
+// ===================== Core State =====================
+const state = {
+  mode:'regular',
+  arena:ARENAS[0],
+  deck:Array(8).fill(null),
+  lastDeck:null,
+  mana:5, aiMana:5,
+  time:150,
+  running:false,
+  frozen:false,   // freeze while answering questions
+  lane:'top',
+  pos:'mid',      // back|mid|front
+  hand:[], drawPile:[],
+  you:{top:1000,bot:1000},
+  ai:{top:1000,bot:1000},
+  units:[], proj:[],
+  aiTimer:0,
+  timescale:1,
+  fpsAvg:60,
+  progress:{maxUnlocked:1}, 
+  manaLockUntil: 0,   // timestamp (ms) until you can ask for mana again
+  // progression: only Arena 1 unlocked initially
+};
+
+// ===================== Audio (8-bit WebAudio) =====================
+const AudioSys = (()=>{
+  const AC = window.AudioContext||window.webkitAudioContext; const ctx=new AC();
+  const master=ctx.createGain(); master.gain.value=0.35; master.connect(ctx.destination);
+  let muted=false, loopInt=null, curPat=null; 
+  function tone(freq,dur=0.2,when=0,type='square',vol=0.18){
+    const o=ctx.createOscillator(), g=ctx.createGain(); o.type=type; o.frequency.value=freq; o.connect(g); g.connect(master);
+    const t=ctx.currentTime+(when||0); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.01); g.gain.linearRampToValueAtTime(0,t+dur);
+    o.start(t); o.stop(t+dur+0.02);
+  }
+  const PATTERNS={
+    calm:[220,247,262,247,220,220,330,262], bossa:[262,330,392,330,262,330,294,330], lab:[294,330,349,392,349,330,294,262],
+    caf:[196,220,247,220,196,220,247,262], art:[262,294,330,349,392,349,330,294], music:[330,330,392,440,392,330,294,262],
+    gym:[262,294,330,262,330,349,392,349], hist:[220,262,330,392,330,262,220,196], vp:[196,220,262,196,220,247,220,196], final:[392,440,494,523,494,440,392,523]
+  };
+  function playLoop(key){ stop(); curPat=PATTERNS[key]||PATTERNS.calm; let i=0; loopInt=setInterval(()=>{ if(!muted) tone(curPat[i%curPat.length],0.18,0,'square',0.16); i++; },280); }
+  function stop(){ if(loopInt){clearInterval(loopInt); loopInt=null;} }
+  function setMuted(m){ muted=m; master.gain.value=m?0:0.35; }
+  return {ctx,playLoop,stop,setMuted};
+})();
+
+// ===================== Math Generators =====================
+const PI = Math.PI;
+function circleProblem(diff){
+  // diff 1..5 | measuring circles
+  const t = randi(1,6); let prompt,ans,tol=0.03;
+  if(t===1){ let r=randi(2,15); ans=2*PI*r; prompt=`Unit 3: Measuring Circles — r=${r}. Find circumference C.`; }
+  else if(t===2){ let d=randi(4,24); ans=PI*d; prompt=`Unit 3: Measuring Circles — d=${d}. Find circumference C.`; }
+  else if(t===3){ let r=randi(2,16); ans=PI*r*r; prompt=`Unit 3: Measuring Circles — r=${r}. Find area A.`; }
+  else if(t===4){ let r=randi(2,14); let C=2*PI*r; ans=r; prompt=`Unit 3: Measuring Circles — C=${C.toFixed(2)}. Find radius r.`; }
+  else if(t===5){ let r=randi(2,14); let A=PI*r*r; ans=r; prompt=`Unit 3: Measuring Circles — A=${A.toFixed(2)}. Find radius r.`; }
+  else { let d=randi(4,24); let C=PI*d; ans=d; prompt=`Unit 3: Measuring Circles — C=${C.toFixed(2)}. Find diameter d.`; }
+  tol = Math.max(0.015, 0.03 - (diff-1)*0.003);
+  return {prompt,ans,tol,hint:'Use π≈3.14. Round to 2 decimals if needed.'};
+}
+function eqProblem(diff){
+  // diff 1..5 | writing & solving equations
+  const type = randi(1,3); let a,b,c,d,ans,prompt;
+  if(type===1){ a=randi(2,9); c=randi(10,40); ans=(c/a); prompt=`Unit 3: Writing & Solving Equations — Solve: ${a}x = ${c}`; }
+  else if(type===2){ a=randi(2,9); b=randi(-10,10); c=randi(5,40); ans=(c-b)/a; prompt=`Unit 3: Writing & Solving Equations — Solve: ${a}x ${b>=0?'+':'-'} ${Math.abs(b)} = ${c}`; }
+  else { a=randi(1,7); b=randi(-9,9); c=randi(1,7); while(c===a) c=randi(1,7); d=randi(-9,9); ans=(d-b)/(a-c); prompt=`Unit 3: Writing & Solving Equations — Solve: ${a}x ${b>=0?'+':'-'} ${Math.abs(b)} = ${c}x ${d>=0?'+':'-'} ${Math.abs(d)}`; }
+  return {prompt,ans,tol:0.01,hint:'Give an integer or decimal (2 dp).'};
+}
+// Proportional reasoning (7.RP.A.2 & 7.RP.A.2b) injected in both modes
+function propProblem(diff){
+  const t=randi(1,3); let prompt,ans,tol=0.01;
+  if(t===1){ // constant of proportionality k
+    const k=randi(2,9)/randi(1,4); const x=randi(2,12); const y=round2(k*x);
+    prompt=`Proportional Relationships — Given (x,y)=(${x}, ${y}). Find k such that y=kx.`; ans=round2(k);
+  } else if(t===2){ // missing value
+    const k=randi(1,7); const x=randi(2,10); const miss=Math.random()<0.5?'x':'y';
+    if(miss==='y'){ ans=round2(k*x); prompt=`Proportional Relationships — y=kx with k=${k}. Find y when x=${x}.`; }
+    else { const y=k*x; ans=round2(y/k); prompt=`Proportional Relationships — y=kx with k=${k}. Find x when y=${y}.`; }
+  } else { // table completion
+    const k=randi(2,9); const x1=randi(2,6); const y1=k*x1; const x2=randi(7,12); const y2=k*x2; const hide=Math.random()<0.5?'x2':'y2';
+    if(hide==='x2'){ ans=x2; prompt=`Proportional Table — y=${k}x. Complete: (x,y)=(${x1},${y1}), (x, y)=(?, ${y2}). What is x?`; }
+    else { ans=y2; prompt=`Proportional Table — y=${k}x. Complete: (x,y)=(${x1},${y1}), (x, y)=(${x2}, ?). What is y?`; }
+  }
+  return {prompt,ans,tol,hint:'Use y=kx. Keep 2 decimals if needed.'};
+}
+
+function nearChoices(correct){
+  const s=new Set([round2(correct)]);
+  while(s.size<4){ let j = correct + (Math.random()*2-1)* (Math.abs(correct)*0.35 + 1); s.add(round2(j)); }
+  return Array.from(s).sort(()=>Math.random()-0.5);
+}
+function round2(x){ return Math.round(x*100)/100; }
+
+// ===================== UI Wiring (no engine yet) =====================
+const arenaSel = $('#arenaSel');
+ARENAS.forEach(a=>{ const o=document.createElement('option'); o.value=a.id; o.textContent=`${a.id}. ${a.name} – ${a.teacher}`; arenaSel.appendChild(o); });
+
+function refreshArenaLocks(){
+  const max = state.progress.maxUnlocked||1;
+  $$('#arenaSel option').forEach(opt=>{ const id=+opt.value; opt.disabled = id>max; opt.className = id>max? 'lock':''; });
+  if(+arenaSel.value>max){ arenaSel.value = max; state.arena = ARENAS[max-1]; }
+}
+
+function updateBadges(){
+  $('#modeBadge').textContent = state.mode==='regular'?'Regular: Circles (+Proportions)':'Advanced: Equations (+Proportions)';
+  $('#arenaBadge').textContent = `Arena ${state.arena.id} – ${state.arena.teacher}`;
+  $('#arenaBG').className = `arenaBG ${state.arena.bgClass}`;
+  refreshArenaLocks();
+}
+
+$('#modeSel').addEventListener('change',e=>{ state.mode=e.target.value; updateBadges(); saveProgress(); });
+arenaSel.addEventListener('change',e=>{ const id=+e.target.value; state.arena=ARENAS.find(a=>a.id===id); updateBadges(); AudioSys.playLoop(state.arena.music); saveProgress(); showDeck(); });
+$('#muteBtn').addEventListener('click',()=>{ const btn=$('#muteBtn'); const isMuted=btn.textContent==='🔇'; AudioSys.setMuted(!isMuted); btn.textContent = isMuted?'🔊':'🔇'; });
+$('#resetBtn').addEventListener('click',()=>{ localStorage.removeItem(store.k); location.reload(); });
+
+// lane & position buttons
+$('#laneTop').onclick=()=>{state.lane='top'; $('#laneLbl').textContent='Top'};
+$('#laneBot').onclick=()=>{state.lane='bot'; $('#laneLbl').textContent='Bottom'};
+$$('.posBtns .btn').forEach(b=> b.addEventListener('click',()=>{ state.pos=b.dataset.pos; $$('.posBtns .btn').forEach(x=>x.classList.remove('primary')); b.classList.add('primary'); }));
+
+// ===================== Deckbuilder (UI only here) =====================
+$('#deckBtn').onclick=()=> showDeck();
+$('#usePrev').onclick=()=>{ if(state.lastDeck){ state.deck=[...state.lastDeck]; renderDeck(); } };
+$('#randDeck').onclick=()=>{ state.deck = shuffle(POOL).slice(0,8).map(c=>c.id); renderDeck(); };
+$('#saveDeck').onclick=()=>{ if(state.deck.length!==8 || state.deck.some(v=>!v)){ alert('Select 8 cards.'); return;} state.lastDeck=[...state.deck]; saveProgress(); hide('#deckModal'); };
+
+function showDeck(){
+  const modal=$('#deckModal'); modal.classList.add('show');
+  const poolEl=$('#pool'), deckEl=$('#deck'); poolEl.innerHTML=''; deckEl.innerHTML='';
+  POOL.forEach(c=>{
+    const b=btn(`${iconFor(c)} <span class="label">${c.label}</span><br><span class=meta>${c.type} • ${c.cost}</span>`,`cardbtn`);
+    b.style.background=c.color+'33'; b.onclick=()=>addToDeck(c.id);
+    poolEl.appendChild(b);
+  });
+  for(let i=0;i<8;i++){ deckEl.appendChild(slot(i)); }
+  renderDeck();
+}
+function hide(sel){ $(sel).classList.remove('show'); }
+window.addEventListener('click',(e)=>{ if(e.target.id==='deckModal') hide('#deckModal'); if(e.target.id==='qModal') closeQuestion(); if(e.target.id==='endModal') hide('#endModal'); });
+
+function slot(i){ const d=document.createElement('div'); d.className='cardbtn'; d.innerHTML=`<span class=tiny>Slot ${i+1}</span>`; d.onclick=()=>{ if(state.deck[i]){ state.deck[i]=null; renderDeck(); } }; return d; }
+function addToDeck(id){ if(state.deck.filter(Boolean).length>=8) return; if(state.deck.includes(id)) return; state.deck[state.deck.indexOf(null)>=0?state.deck.indexOf(null):state.deck.filter(Boolean).length]=id; renderDeck(); }
+function renderDeck(){
+  const deckEl=$('#deck'); const kids=Array.from(deckEl.children);
+  const cards=state.deck.map(id=>POOL.find(c=>c.id===id));
+  kids.forEach((el,i)=>{
+    const c=cards[i]; el.innerHTML = c? `${iconFor(c)} <span class="label">${c.label}</span><br><span class=meta>${c.type} • ${c.cost}</span>`: `<span class=tiny>Slot ${i+1}</span>`; el.style.background=c? c.color+'55':'#0f172a';
+  });
+  const avg=(cards.filter(Boolean).reduce((s,c)=>s+c.cost,0)/(cards.filter(Boolean).length||1)).toFixed(2);
+  $('#avgCost').textContent = `Avg Cost: ${avg}`;
+}
+
+// Start button honors arena locks (progression)
+$('#startBtn').onclick=()=>{ const selId=+arenaSel.value; if(selId>state.progress.maxUnlocked){ alert('Locked. Beat the previous arena first.'); return; } if(state.deck.length!==8 || state.deck.some(v=>!v)){ showDeck(); return; } startMatch(); };
+
+// ===================== Hand & HUD (UI only) =====================
+function rebuildHandUI(){
+  const handEl=$('#hand'); handEl.innerHTML='';
+  const cards=state.hand.map(id=>POOL.find(c=>c.id===id));
+  cards.forEach((c)=>{ const b=btn(`${iconFor(c)} <span class="label">${c.label}</span><br><span class=meta>${c.type} • ${c.cost}</span>`,`cardbtn`);
+    b.style.background=c.color+'70'; b.disabled = (state.mana < c.cost) || !state.running; b.onclick=()=> attemptPlay(c);
+    handEl.appendChild(b);
+  });
+  $('#manaLbl').textContent = (state.mana||0).toFixed(1);
+  $('#manaBar').style.width = `${((state.mana||0)/MAX_MANA)*100}%`;
+}
+
+$('#solveManaBtn').onclick = () => {
+  const now = Date.now();
+  if (state.manaLockUntil && now < state.manaLockUntil) {
+    const remain = Math.ceil((state.manaLockUntil - now) / 1000);
+    alert(`Cooldown: wait ${remain}s before solving for mana again.`);
+    return;
+  }
+  openQuestion('mana');
+};
+
+// ===================== Question Flow (freeze time here) =====================
+let qCtx=null, qTried=false; // {kind:'deploy'|'mana', card?, ans, tol}
+function openQuestion(kind, card) {
+  state.frozen = true; // freeze timer & AI
+
+  const band = Math.ceil(state.arena.id / 2); // 1..5 difficulty scaling
+  const choose = Math.random() < 0.34 ? propProblem : (state.mode === 'regular' ? circleProblem : eqProblem);
+  const q = choose(band);
+
+  qCtx = { kind, card, ans: q.ans, tol: q.tol };
+
+  // Build modal
+  $('#qTitle').textContent = kind === 'mana' ? 'Solve for Mana' : `Play: ${card.label}`;
+  $('#qHint').textContent = q.hint;
+  $('#qText').textContent = q.prompt;
+  $('#qFeedback').textContent = '';
+
+  // Show multiple choice options immediately
+  const mc = $('#qMC');
+  mc.style.display = 'flex';
+  mc.innerHTML = '';
+  const opts = nearChoices(q.ans);
+  opts.forEach(o => {
+    const b = btn(o, 'btn');
+    b.onclick = () => submitMC(o);
+    mc.appendChild(b);
+  });
+
+  // Hide input field entirely
+  $('#qInput').style.display = 'none';
+  $('#qSubmit').style.display = 'none';
+
+  $('#qModal').classList.add('show');
+}
+
+function closeQuestion(){ $('#qModal').classList.remove('show'); state.frozen=false; qCtx=null; qTried=false; }
+$('#qClose').onclick=()=> closeQuestion();
+$('#qSubmit').onclick = ()=>{};
+$('#qInput').addEventListener('keydown', ()=>{});
+
+function submitMC(choice) {
+  if (!qCtx) return;
+
+  const v = parseFloat(choice);
+  const ok = Math.abs(v - qCtx.ans) <= Math.max(qCtx.tol * Math.abs(qCtx.ans), 0.01);
+
+  if (ok) {
+    // ✅ Correct: reward mana, close question, unfreeze time
+    feedback(`Correct! (${round2(qCtx.ans)})`, true);
+    if (qCtx.kind === 'mana') {
+      addMana(manaReward());
+    }
+    setTimeout(() => {
+      closeQuestion();
+    }, 350);
+  } else {
+    // ❌ Incorrect:
+    //  - reset mana to 0
+    //  - start 10s cooldown for mana questions
+    //  - close question (time resumes)
+    if (qCtx.kind === 'mana') {
+      state.mana = 0;
+      rebuildHandUI();
+      state.manaLockUntil = Date.now() + 10000; // 10 seconds
+    }
+
+    feedback('Incorrect. Mana reset to 0. 10s cooldown.', false);
+
+    setTimeout(() => {
+      closeQuestion();  // unfreeze and go back to the battle
+    }, 500);
+  }
+}
+function feedback(msg,good){ const el=$('#qFeedback'); el.textContent=msg; el.style.color=good?'#6ee7b7':'#fb7185'; }
+function manaReward(){ return Math.min(4.0, 1.6 + 0.15*(state.arena.id-1)); }
+
+// ===================== Utilities used above/below =====================
+function shuffle(a){ return a.map(x=>[Math.random(),x]).sort((p,q)=>p[0]-q[0]).map(p=>p[1]); }
+function shuffleInPlace(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function btn(html,cls='btn'){ const b=document.createElement('button'); b.className=cls; b.innerHTML=html; return b; }
+function iconFor(c){ const map={melee:'🛡️',ranged:'🏹',siege:'🧱',support:'🎗️',spell:'✨'}; return `<span style="font-size:18px">${map[c.type]||'🎴'}</span>`; }
+
+// ===================== Persistence (progress & settings) =====================
+function saveProgress(){ const data=store.load(); data.mode=state.mode; data.arenaId=state.arena.id; data.lastDeck=state.lastDeck; data.progress=state.progress; store.save(data); }
+function loadProgress(){ const d=store.load(); if(d.mode) state.mode=d.mode; if(d.progress) state.progress=d.progress; refreshArenaLocks(); if(d.arenaId){ const id=Math.min(d.arenaId,state.progress.maxUnlocked); state.arena=ARENAS.find(a=>a.id===id)||ARENAS[0]; $('#arenaSel').value=state.arena.id; } if(d.lastDeck) state.lastDeck=d.lastDeck; updateBadges(); }
+
+// ===================== Stubs used by Section 4 (implemented in Section 5) =====================
+function startMatch(){}                // Section 5
+// Play a card immediately; questions are only for mana refills
+function attemptPlay(card){
+  if (state.mana < card.cost) return;
+  doDeploy(card);           // spend mana & spawn/apply effect
+  rotateCard(card.id);      // cycle the card
+  rebuildHandUI();          // refresh hand/mana HUD
+}
+
+function doDeploy(card){}              // Section 5
+function rotateCard(cardId){}          // Section 5
+function addMana(x){ state.mana = clamp((state.mana||0) + x, 0, MAX_MANA); rebuildHandUI(); }
+
+// Keyboard shortcuts (lane/position; card # handled in Section 5 loop)
+window.addEventListener('keydown',e=>{
+  if(e.key==='t' || e.key==='T'){ state.lane='top'; $('#laneLbl').textContent='Top'; }
+  if(e.key==='b' || e.key==='B'){ state.lane='bot'; $('#laneLbl').textContent='Bottom'; }
+  if(e.key==='f' || e.key==='F'){ state.pos='front'; highlightPosBtn('front'); }
+  if(e.key==='m' || e.key==='M'){ state.pos='mid';   highlightPosBtn('mid'); }
+  if(e.key==='v' || e.key==='V'){ state.pos='back';  highlightPosBtn('back'); }
+});
+function highlightPosBtn(p){ $$('.posBtns .btn').forEach(x=>x.classList.remove('primary')); const btn=document.querySelector(`.posBtns .btn[data-pos="${p}"]`); if(btn) btn.classList.add('primary'); }
+
+</script>
+<!-- SECTION 5: ENGINE, DRAWING, ACTIONS, PROGRESSION, BOOT -->
+<script>
+// ===== Canvas & Geometry =====
+const cvs = document.getElementById('game');
+const ctx = cvs.getContext('2d');
+const LTOP_Y= 540*0.25, LBOT_Y= 540*0.75; // lane centers
+const PXLEFT=110, PXRIGHT=960-110;        // tower x positions
+let raf=null, acc=0, last=0, STEP=1/60;   // fixed-step engine
+
+// Lane closes ONLY when both towers on that lane are destroyed
+function laneOpen(lane){
+  const youDown = state.you[lane] <= 0;
+  const aiDown  = state.ai[lane]  <= 0;
+  return !(youDown && aiDown); // open unless both are down
+}
+
+// ===== Match Setup =====
+function startMatch(){
+  state.running=true; state.frozen=false;
+  state.time=150; state.mana=5; state.aiMana=5;
+  state.units=[]; state.proj=[];
+  state.you={top:1000,bot:1000}; state.ai={top:1000,bot:1000};
+  state.aiTimer = rand(...state.arena.ai.delay);
+
+  // deck -> draw 4
+  state.drawPile=[...state.deck]; shuffleInPlace(state.drawPile);
+  state.hand = state.drawPile.splice(0,4);
+
+  rebuildHandUI(); updateBadges(); AudioSys.playLoop(state.arena.music);
+  renderDeckOverview();
+  loopStart();
+}
+
+// ===== Engine Loop (smooth slowdown support) =====
+function loopStart(){ cancelAnimationFrame(raf); acc=0; last=performance.now(); raf=requestAnimationFrame(tick); }
+function tick(t){ const dt=Math.min(0.06,(t-last)/1000); last=t;
+  const fps=1/dt; state.fpsAvg = state.fpsAvg*0.9 + fps*0.1;
+  state.timescale = state.fpsAvg<50? 0.85 : 1;
+  acc+=dt; while(acc>=STEP){ step(STEP*state.timescale); acc-=STEP; }
+  draw(); raf=requestAnimationFrame(tick);
+}
+
+function step(dt){
+  if(!state.running) return;
+  if(state.frozen) return; // freeze during questions
+
+  // timers & mana
+  state.time = Math.max(0, state.time - dt);
+  state.mana   = clamp((state.mana||0)   + PASSIVE_REGEN*dt, 0, MAX_MANA);
+  state.aiMana = clamp((state.aiMana||0) + state.arena.ai.regen*dt, 0, MAX_MANA);
+
+  // AI timer
+  state.aiTimer -= dt; if(state.aiTimer<=0){ aiAct(); state.aiTimer = rand(...state.arena.ai.delay); }
+
+  // Per-lane unit updates (respect lane closures)
+  ['top','bot'].forEach(lane=>{
+    // Close lane if either tower on that lane is down
+    if(!laneOpen(lane)){
+      state.units = state.units.filter(u => u.lane !== lane); // purge lingering units
+      return;
+    }
+
+    const laneUnits = state.units.filter(u=>u.lane===lane);
+
+    laneUnits.forEach(u=>{
+      u.atkTimer -= dt;
+      const card = POOL.find(c=>c.id===u.card);
+
+      // target enemy in range
+      const enemies = laneUnits.filter(v=>v.side!==u.side);
+      let target=null, dmin=1e9;
+      enemies.forEach(v=>{ const d=Math.abs(v.x-u.x); if(d <= (card.range||30) && d<dmin){ dmin=d; target=v; } });
+
+      // enemy tower distance on this lane
+      const enemyTowerX = u.side==='you'? PXRIGHT : PXLEFT;
+      const dTower = Math.abs(enemyTowerX - u.x);
+
+      if(target){
+        if(u.atkTimer<=0){
+          u.atkTimer = card.atk;
+          if(card.splash){
+            enemies.forEach(w=>{
+              if(Math.abs(w.x - target.x) <= card.splash){ w.hp -= Math.floor(card.dmg*0.6); }
+            });
+          }
+          target.hp -= card.dmg;
+        }
+      } else if(dTower <= (card.range||30)){
+        if(u.atkTimer<=0){
+          u.atkTimer = card.atk;
+          if(u.side==='you'){ if(lane==='top') state.ai.top-=card.dmg; else state.ai.bot-=card.dmg; }
+          else { if(lane==='top') state.you.top-=card.dmg; else state.you.bot-=card.dmg; }
+        }
+      } else {
+        u.x += (u.side==='you'?1:-1) * card.spd * dt;
+        u.x = clamp(u.x, PXLEFT, PXRIGHT);
+      }
+
+      // auras
+      if(card.buff){
+        laneUnits.forEach(w=>{
+          if(w.side===u.side && w!==u && Math.abs(w.x-u.x)<=60){
+            const wc=POOL.find(c=>c.id===w.card);
+            w._atkOrig = w._atkOrig||wc.atk;
+            wc.atk = Math.max(0.3, w._atkOrig*(1-(u.buff||0.18)));
+          }
+        });
+      }
+      if(card.auradmg){
+        laneUnits.forEach(w=>{
+          if(w.side!==u.side && Math.abs(w.x-u.x)<=55){ w.hp -= card.auradmg*dt; }
+        });
+      }
+     // healing aura (e.g., Healing Mage Delanie)
+     if (card.auraheal) {
+                 laneUnits.forEach(w => {
+                       if (w.side === u.side && Math.abs(w.x - u.x) <= (card.range || 60)) {
+                              const base = POOL.find(c => c.id === w.card).hp;
+      // heal allies over time, capped at their base HP
+            w.hp = Math.min(base, w.hp + card.auraheal * dt);
+    }
+  });
+}
+
+    });
+  });
+
+  // Cleanup (dead units)
+  state.units = state.units.filter(u=>u.hp>0);
+
+  // ---- END CONDITIONS (require BOTH towers destroyed) ----
+  const aiDownBoth  = (state.ai.top<=0 && state.ai.bot<=0);
+  const youDownBoth = (state.you.top<=0 && state.you.bot<=0);
+  const timeUp      = (state.time <= 0);
+  if (aiDownBoth || youDownBoth || timeUp) {
+    state.running = false;
+    endMatch();
+  }
+}
+
+// ===== Drawing =====
+function draw(){
+  ctx.clearRect(0,0,cvs.width,cvs.height);
+  // Towers
+  drawTower(PXLEFT,LTOP_Y,state.you.top,false,'Your Top');
+  drawTower(PXLEFT,LBOT_Y,state.you.bot,false,'Your Bottom');
+  drawTower(PXRIGHT,LTOP_Y,state.ai.top,true,`${state.arena.teacher} Top`);
+  drawTower(PXRIGHT,LBOT_Y,state.ai.bot,true,`${state.arena.teacher} Bottom`);
+  // Units
+  state.units.forEach(u=>{
+    const c=POOL.find(x=>x.id===u.card);
+    ctx.save(); ctx.translate(u.x,u.lane==='top'?LTOP_Y:LBOT_Y);
+    ctx.fillStyle=c.color; ctx.strokeStyle='#0b0b0b'; ctx.lineWidth=2;
+    roundRect(ctx,-10,-10,20,20,6,true,true);
+    const maxHP=(c.hp||150); const pct=clamp(u.hp/maxHP,0,1);
+    ctx.fillStyle='#0b0b0b'; ctx.fillRect(-12,14,24,4);
+    ctx.fillStyle='#9FE970'; ctx.fillRect(-12,14,24*pct,4);
+    ctx.fillStyle='#f8fbff'; ctx.font='bold 10px system-ui';
+    ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=6;
+    ctx.fillText(c.label.split(' ')[1]||c.label,0,-16);
+    ctx.restore();
+  });
+
+  // HUD labels
+  document.getElementById('timeLbl').textContent = Math.ceil(state.time);
+  document.getElementById('hpYou').textContent = `${Math.max(0,state.you.top)}/1000 • ${Math.max(0,state.you.bot)}/1000`;
+  rebuildHandUI();
+  renderDeckOverview();
+}
+
+function drawTower(x,y,hp,isEnemy,label){
+  ctx.save(); ctx.translate(x,y);
+  ctx.fillStyle = isEnemy? '#dc2626':'#16a34a';
+  roundRect(ctx,-14,-28,28,56,8,true,false);
+  ctx.strokeStyle='#0b0b0b'; ctx.lineWidth=3; ctx.stroke();
+  ctx.fillStyle='#0b0b0b'; ctx.fillRect(-16,30,32,5);
+  ctx.fillStyle='#9FE970'; ctx.fillRect(-16,30,32*clamp(hp/1000,0,1),5);
+  ctx.fillStyle='#f8fbff'; ctx.font='bold 10px system-ui';
+  ctx.textAlign='center'; ctx.shadowColor='rgba(0,0,0,.9)'; ctx.shadowBlur=6;
+  ctx.fillText(label,0,-36);
+  ctx.restore();
+}
+function roundRect(ctx,x,y,w,h,r,fill,stroke){
+  if(r>Math.min(w,h)/2) r=Math.min(w,h)/2;
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  if(fill) ctx.fill(); if(stroke) ctx.stroke();
+}
+
+// ===== Actions: Deploy & AI =====
+function spawnX(side){
+  if(side==='you'){
+    if(state.pos==='back') return PXLEFT+30;
+    if(state.pos==='mid')  return (PXLEFT+PXRIGHT)/2 - 120;
+    return (PXLEFT+PXRIGHT)/2 + 20; // front
+  } else {
+    if(state.pos==='back') return PXRIGHT-30;
+    if(state.pos==='mid')  return (PXLEFT+PXRIGHT)/2 + 120;
+    return (PXLEFT+PXRIGHT)/2 - 20;
+  }
+}
+
+function doDeploy(card){
+  // disallow deploying to a closed lane
+  if(!laneOpen(state.lane)){ alert('That lane is closed. Pick the other lane.'); return; }
+  if(state.mana < card.cost) return; state.mana -= card.cost;
+
+  if(card.spell==='fire'){
+    const cx=(PXLEFT+PXRIGHT)/2;
+    state.units.forEach(u=>{ if(u.side==='ai' && u.lane===state.lane && Math.abs(u.x-cx)<=card.aoe){ u.hp -= card.dmg; } });
+    if(state.lane==='top') state.ai.top -= card.tdmg; else state.ai.bot -= card.tdmg;
+  } else if(card.spell==='heal'){
+    const cx=(PXLEFT+PXRIGHT)/2;
+    state.units.forEach(u=>{ if(u.side==='you' && u.lane===state.lane && Math.abs(u.x-cx)<=card.aoe){ const base=POOL.find(c=>c.id===u.card).hp; u.hp=Math.min(base,u.hp+card.heal); } });
+  } else {
+    const y = state.lane==='top'?LTOP_Y:LBOT_Y; const x = spawnX('you'); const id = `${card.id}-${Date.now()}-${Math.floor(Math.random()*9999)}`;
+    state.units.push({id,side:'you',x,y,lane:state.lane,hp:card.hp,card:card.id,atkTimer:0});
+  }
+}
+
+function aiAct(){
+  // Consider OPEN lanes only; never spawn to a closed lane
+  const openLanes = ['top','bot'].filter(l => laneOpen(l));
+  if (openLanes.length === 0) return;
+
+  // Pick lane:
+  // - If only one lane is open → use it.
+  // - If both lanes are open → randomly alternate (coin flip each tick).
+  let lane;
+  if (openLanes.length === 1) {
+    lane = openLanes[0];
+  } else {
+    lane = (Math.random() < 0.5) ? 'top' : 'bot';
+  }
+
+  // Pick an affordable card and play it
+  const affordable = shuffle(POOL.filter(c => state.aiMana >= c.cost));
+  if (affordable.length === 0) return;
+  const card = affordable[0];
+  state.aiMana -= card.cost;
+
+  if (card.spell === 'fire') {
+    // Pressure your tower on that lane
+    if (lane === 'top') state.you.top -= card.tdmg; else state.you.bot -= card.tdmg;
+  } else if (card.spell === 'heal') {
+    // Heal AI units on that lane
+    const cx = (PXLEFT + PXRIGHT) / 2;
+    state.units.forEach(u => {
+      if (u.side === 'ai' && u.lane === lane && Math.abs(u.x - cx) <= card.aoe) {
+        const base = POOL.find(c => c.id === u.card).hp;
+        u.hp = Math.min(base, u.hp + card.heal);
+      }
+    });
+  } else {
+    // Spawn a unit for AI on chosen lane
+    const y = lane === 'top' ? LTOP_Y : LBOT_Y;
+    const x = spawnX('ai');
+    const id = `${card.id}-ai-${Date.now()}-${Math.floor(Math.random()*9999)}`;
+    state.units.push({ id, side:'ai', x, y, lane, hp:card.hp, card:card.id, atkTimer:0 });
+  }
+}
+
+
+function rotateCard(cardId){
+  const idx = state.hand.indexOf(cardId);
+  if(idx>=0){ const nextId = state.drawPile.shift(); state.hand[idx]=nextId; state.drawPile.push(cardId); }
+  rebuildHandUI();
+}
+
+// ===== End Match & Progression =====
+function endMatch(){
+  const youDownBoth = (state.you.top<=0 && state.you.bot<=0);
+  const aiDownBoth  = (state.ai.top<=0 && state.ai.bot<=0);
+  const timeUp      = (state.time<=0);
+
+  let title='Draw';
+  if (aiDownBoth && !youDownBoth) {
+    title='You Win!';
+  } else if (youDownBoth && !aiDownBoth) {
+    title='Defeat';
+  } else if (timeUp) {
+    const yourTotal = Math.max(0,state.you.top) + Math.max(0,state.you.bot);
+    const aiTotal   = Math.max(0,state.ai.top)  + Math.max(0,state.ai.bot);
+    if (yourTotal > aiTotal) title = 'You Win (time)!';
+    else if (yourTotal < aiTotal) title = 'Defeat (time)';
+    else title = 'Draw (time)';
+  }
+
+  document.getElementById('endTitle').textContent = title;
+  document.getElementById('endStats').textContent =
+    `Your Towers: ${Math.max(0,state.you.top)} & ${Math.max(0,state.you.bot)}  |  ` +
+    `${state.arena.teacher}: ${Math.max(0,state.ai.top)} & ${Math.max(0,state.ai.bot)}`;
+  document.getElementById('endModal').classList.add('show');
+
+  // Progression unlock on win
+  if (title.startsWith('You Win') &&
+      state.arena.id === state.progress.maxUnlocked &&
+      state.arena.id < ARENAS.length) {
+    state.progress.maxUnlocked++;
+    saveProgress();
+    refreshArenaLocks();
+  }
+}
+
+// End modal buttons
+document.getElementById('againBtn').onclick = () => {
+  document.getElementById('endModal').classList.remove('show');
+  startMatch();
+};
+document.getElementById('editDeckBtn').onclick = () => {
+  document.getElementById('endModal').classList.remove('show');
+  showDeck();
+};
+
+// ===== Deck Overview UI (shows 1–8) =====
+function ensureDeckOverview(){
+  if (document.getElementById('deckOverview')) return;
+  const hud = document.querySelector('.hud');
+  const wrap = document.createElement('div');
+  wrap.className = 'panel';
+  wrap.id = 'deckOverview';
+  wrap.innerHTML = `
+    <div class="row" style="justify-content:space-between">
+      <strong>Current Deck (1–8)</strong>
+      <span class="tiny">★ = in hand</span>
+    </div>
+    <div id="deckOverviewList" class="row" style="flex-wrap:wrap;gap:6px;margin-top:6px"></div>
+  `;
+  hud.parentElement.insertBefore(wrap, hud.nextSibling);
+}
+function renderDeckOverview(){
+  ensureDeckOverview();
+  const list = document.getElementById('deckOverviewList');
+  if (!list) return;
+  list.innerHTML = '';
+  const labels = state.deck.map(id => POOL.find(c => c.id===id));
+  for (let i=0;i<8;i++){
+    const c = labels[i];
+    const inHand = c ? state.hand.includes(c.id) : false;
+    const tag = document.createElement('span');
+    tag.className = 'badge';
+    tag.style.borderColor = '#2b3d66';
+    tag.style.background = '#0d152a';
+    tag.textContent = `${i+1}. ${c? c.label : '—'}${c? ` (${c.cost})` : ''}${inHand? ' ★':''}`;
+    list.appendChild(tag);
+  }
+}
+
+// Patch hand UI to show [1–4] and keep overview fresh
+const __origRebuild = rebuildHandUI;
+rebuildHandUI = function(){
+  __origRebuild();
+  const btns = document.querySelectorAll('#hand .cardbtn');
+  btns.forEach((b,i)=>{
+    let tag = b.querySelector('.handnum');
+    if(!tag){ tag = document.createElement('div'); tag.className='handnum tiny'; b.prepend(tag); }
+    tag.textContent = `[${i+1}]`;
+  });
+  renderDeckOverview();
+};
+
+// ===== Keyboard: play cards 1–8 =====
+window.addEventListener('keydown', e => {
+  if (!state.running) return;
+  const k = parseInt(e.key,10);
+  if (k>=1 && k<=8){
+    const cardId = state.hand[k-1];
+    const c = POOL.find(x => x.id===cardId);
+    if (c && state.mana>=c.cost) attemptPlay(c);
+  }
+});
+
+// ===== Boot =====
+(function boot(){
+  loadProgress();
+  refreshArenaLocks();
+  document.getElementById('arenaSel').value = state.arena.id;
+  updateBadges();
+  AudioSys.playLoop(state.arena.music);
+  showDeck();
+  rebuildHandUI();
+  renderDeckOverview();
+})();
+</script>
+</body>
+</html>
